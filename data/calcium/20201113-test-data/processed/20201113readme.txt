@@ -1,0 +1,15 @@
+%   data: you know what they are
+%   dt: time interval bettwen continuousframes
+%   params:
+%  	 p: 	order of AR model
+%   	ca:      raw fluorescence data (vector of length(T))
+%   	ca:      denoised calcium concentration (Tx1 vector)
+%  	 cab:    baseline concentration (scalar)
+%   	ca1:    initial concentration (scalar)
+%   	cag:    discrete time constant(s) (scalar or 2x1 vector)
+%   	casn:   noise standard deviation (scalar)
+%   	casp:   spike vector (Tx1 vector)
+%   	caA:    spike amplitute
+%   	spt:	spiketime(accurate)
+%   	marg: should be ignored=0.0=
+%   mcmcs: may be used in the future if neccessary
