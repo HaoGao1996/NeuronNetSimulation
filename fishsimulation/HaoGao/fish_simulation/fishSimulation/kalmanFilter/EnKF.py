@@ -1,5 +1,5 @@
 import torch
-from numpy.random import multivariate_normal
+from torch.distributions.multivariate_normal import MultivariateNormal
 
 class EnsembleKalmanFilter(object):
     """
@@ -18,7 +18,7 @@ class EnsembleKalmanFilter(object):
 
         self.P = P                                                  # error covariance matrix
         self.N = N                                                  # number of sampling
-        self.sigmas = multivariate_normal(mean=x, cov=P, size=N)    # samples
+        self.sigmas =    # samples
         self.fxu = fxu                                              # definition of state transition function f(x)
         self.hx = hx                                                # definition of observation model h(x)
 
@@ -36,11 +36,15 @@ class EnsembleKalmanFilter(object):
 
         self._mean = torch.zeros(self.dim_x)
 
+    def initialize(self):
+        mn = MultivariateNormal(loc=self.x, covariance_matrix=self.P)
+        self.sigmas = mn.sample(torch.tensor())
+
     def predict(self):
         for i, s in enumerate(self.sigmas):
             self.sigmas[i] = self.fxu(s)
 
-        self.sigmas += multivariate_normal(mean=self._mean, cov=self.Q, size=self.N)
+        self.sigmas += MultivariateNormal(mean=self._mean, cov=self.Q, size=self.N)
 
         P = 0
         for s in self.sigmas:
@@ -59,8 +63,21 @@ class EnsembleKalmanFilter(object):
             sigmas_h[i] = self.hx(s)
 
         z_mean = torch.mean(sigmas_h, axis=0)
+        P_zz = 0
+        for sigma in sigmas_h:
+            zz = sigma - z_mean
+            P_zz += torch.dot(zz, zz)
+        P_zz = P_zz / (self.N - 1) + R
 
+        self.S = P_zz
+        self.SI = torch.inverse(P_zz)
 
+        P_xz = 0
+        for i in range(self.N):
+            P_xz += torch.dot(self.sigmas[i]-self.x, sigmas_h[i]-z_mean)
+        P_xz = P_xz / (self.N-1)
+
+        self.K = torch.dot(P_xz, self.SI)
 
     def __repr__(self):
         return '\n'.join(['EnsembleKalmanFilter object',
