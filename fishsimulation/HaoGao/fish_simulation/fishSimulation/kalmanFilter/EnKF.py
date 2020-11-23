@@ -7,24 +7,28 @@ class EnsembleKalmanFilter(object):
     x_k = f(x_k-1, u_k) + w_k
     z_k = h(x_k) + v_k
     """
-    def __init__(self, x, P, N, dim_z, fxu, hx):
+    def __init__(self, dim_x, dim_z, x, P, fxu, hx, z=None, dim_u=0, Q=None, B=None, u=None, R=None, N=100):
 
-        self.x = x                                                  # state vector
-        self.dim_x = len(self.x)                                    # length of state vector
-        self.Q = torch.eye(self.dim_x)                              # process uncertainty
-        self.z = torch.zeros(dim_z)                                 # measurement vector
-        self.dim_z = dim_z                                          # length of measurement vector
+        self.dim_x = dim_x  # length of state vector
+        self.dim_z = dim_z  # length of measurement vector
+        self.dim_u = dim_u  # length of input vector
+
+        self.x = torch.zeros(dim_x)                              # state vector
+        self.fxu = fxu                                              # definition of state transition function f(x)
+        self.Q = torch.eye(dim_x)                                   # process uncertainty
+
+        self.z = torch.zeros(dim_z)                              # measurement vector
+        self.hx = hx                                                # definition of observation model h(x)
         self.R = torch.eye(self.dim_z)                              # measurement uncertainty
 
         self.P = P                                                  # error covariance matrix
         self.N = N                                                  # number of sampling
-        self.sigmas =    # samples
-        self.fxu = fxu                                              # definition of state transition function f(x)
-        self.hx = hx                                                # definition of observation model h(x)
+        self.sigmas = MultivariateNormal(torch.squeeze(x),          # as 1D tensor
+                                         P).sample((N, ))           # samples
 
-        self.K = torch.zeros((self.dim_x, self.dim_z))              # kalman gain
-        self.S = torch.zeros((self.dim_z, self.dim_z))              # system uncertainty
-        self.SI = torch.zeros((self.dim_z, self.dim_z))             # inverse of system uncertainty
+        self.K = torch.zeros((dim_x, dim_z))                        # kalman gain
+        self.S = torch.zeros((dim_z, dim_z))                        # system uncertainty
+        self.SI = torch.zeros((dim_z, dim_z))                       # inverse of system uncertainty
 
         # store prior estimation of x and P after predict function
         self.x_prior = self.x.clone()
@@ -34,22 +38,23 @@ class EnsembleKalmanFilter(object):
         self.x_post = self.x.clone()
         self.P_post = self.P.clone()
 
-        self._mean = torch.zeros(self.dim_x)
-
-    def initialize(self):
-        mn = MultivariateNormal(loc=self.x, covariance_matrix=self.P)
-        self.sigmas = mn.sample(torch.tensor())
+        self.__mean = torch.zeros(dim_x)                            # as 1D tensor for sampling
+        self.__meanz = torch.zeros(dim_z)                           # as 1D tensor for sampling
 
     def predict(self):
         for i, s in enumerate(self.sigmas):
             self.sigmas[i] = self.fxu(s)
 
-        self.sigmas += MultivariateNormal(mean=self._mean, cov=self.Q, size=self.N)
+        # error for Pk|k=E(xk|k-xk|k-1)
+        mn = MultivariateNormal(loc=self.__mean, covariance_matrix=self.Q)
+        e = mn.sample((self.N, ))
+        self.sigmas += e
 
+        # Pk|k=1/(N-1)\sum(xk|k-xk|k-1)
         P = 0
         for s in self.sigmas:
             sx = s - self.x
-            P += torch.dot(sx, sx)
+            P += torch.ger(sx, sx)
 
         self.P = P / (self.N - 1)
 
@@ -57,27 +62,43 @@ class EnsembleKalmanFilter(object):
         self.x_prior = self.x.clone()
         self.P_prior = self.P.clone()
 
-    def update(self, z, R):
+    def update(self, z):
+
+        # calculate system uncertainty
         sigmas_h = torch.zeros((self.N, self.dim_z))
         for i, s in enumerate(self.sigmas):
             sigmas_h[i] = self.hx(s)
 
-        z_mean = torch.mean(sigmas_h, axis=0)
-        P_zz = 0
+        z_mean = torch.mean(sigmas_h, dim=0)
+
+        S = torch.zeros((self.dim_z, self.dim_z))
         for sigma in sigmas_h:
-            zz = sigma - z_mean
-            P_zz += torch.dot(zz, zz)
-        P_zz = P_zz / (self.N - 1) + R
+            zz = sigma - z_mean  # residual
+            S += torch.ger(zz, zz)
+        self.S = S / (self.N - 1) + self.R
+        self.SI = torch.inverse(self.S)
 
-        self.S = P_zz
-        self.SI = torch.inverse(P_zz)
-
-        P_xz = 0
+        # calculate cross covariance matrix
+        Cxz = torch.zeros((self.dim_x, self.dim_z))
         for i in range(self.N):
-            P_xz += torch.dot(self.sigmas[i]-self.x, sigmas_h[i]-z_mean)
-        P_xz = P_xz / (self.N-1)
+            Cxz += torch.ger(self.sigmas[i]-self.x, sigmas_h[i]-z_mean)
+        Cxz = Cxz / (self.N - 1)
 
-        self.K = torch.dot(P_xz, self.SI)
+        # kalman gain
+        self.K = Cxz @ self.SI
+
+        # sampling measurement value and update sigmas
+        e = MultivariateNormal(self.__meanz, self.R).sample((self.N, ))
+        for i in range(self.N):
+            self.sigmas[i] += self.K @ (z + e[i] - sigmas_h[i])
+
+        # update posterior estimation
+        self.x = torch.mean(self.sigmas, dim=0)
+        self.P = self.P - self.K @ self.S @ self.K.T
+
+        # save posterior estimation
+        self.x_post = self.x.clone()
+        self.P_post = self.P.clone()
 
     def __repr__(self):
         return '\n'.join(['EnsembleKalmanFilter object',

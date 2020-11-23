@@ -6,13 +6,17 @@ class KalmanFilter(object):
     x=Fx+Bu+w
     z=Hx+v
     """
-    def __init__(self, dim_x, dim_z, dim_u=0, F=None, Q=None, B=None, u=None, H=None, R=None):
+    def __init__(self, dim_x, dim_z, x=None, z=None, dim_u=0, F=None, Q=None, B=None, u=None, H=None, R=None):
+
         self.dim_x = dim_x
         self.dim_z = dim_z
         self.dim_u = dim_u
 
         # state vector
-        self.x = torch.zeros(dim_x, 1)
+        if x is None:
+            self.x = torch.zeros(dim_x)
+        else:
+            self.x = x
 
         # state transition matrix
         if F is None:
@@ -36,12 +40,15 @@ class KalmanFilter(object):
                 self.B = B
 
             if u is None:
-                self.u = torch.zeros(dim_u, 1)
+                self.u = torch.zeros(dim_u)
             else:
                 self.u = u
 
         # measurement vector
-        self.z = torch.zeros(dim_z, 1)
+        if z is None:
+            self.z = torch.zeros(dim_z)
+        else:
+            self.z = z
 
         # measurement function
         if H is None:
