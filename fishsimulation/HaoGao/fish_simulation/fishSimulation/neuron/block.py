@@ -29,22 +29,22 @@ class block(object):
         self.tau_ui = torch.tensor(node_property[:, 18:22].reshape([4, 1]))  # shape [K, N]
 
         self.t_ik_last = torch.zeros(N)  # shape [N]
-        self.active = torch.tensor(False)  # bool
+        self.active = torch.tensor([False])  # bool
         self.V_i = torch.ones(N) * (self.V_th + self.V_reset) / 2  # membrane potential, shape: [N]
         self.J_ui = torch.zeros((K, N))  # shape [K, N]
-        self.t = torch.tensor(0.)  # scalar
+        self.t = torch.tensor([0.])  # scalar
 
-    def update_J_ui(self, spikes):
-        # spikes: num of spike
+    def update1(self):
+        self.t += self.delta_t
+        self.t_ik_last = torch.where(self.active, self.t, self.t_ik_last)
 
-        J_ui_activate_part = torch.ones(4, 1) * spikes
+        J_ui_activate_part = torch.ones(4, 1) * u
         self.J_ui = self.J_ui * torch.exp(-self.delta_t / self.tau_ui)
         self.J_ui += J_ui_activate_part
 
-    def update_t_ik_last(self):
-        self.t_ik_last = torch.where(self.active, self.t, self.t_ik_last)
 
-    def update_Vi(self):
+
+
         I_ui = self.g_ui * (self.V_ui - self.V_i) * self.J_ui
         I_syn = I_ui.sum(dim=0)
 
@@ -58,32 +58,7 @@ class block(object):
         self.active = self.V_i >= self.V_th
         self.V_i = torch.min(self.V_i, self.V_th)
 
-    def update(self, spikes):
-        self.t += self.delta_t
-
-        self.update_J_ui(spikes)
-        self.update_t_ik_last()
-        self.update_Vi()
-
-        return self.t.tolist(), self.V_i.tolist()[0]
-
-    def params_display(self):
-        print(f'I_extern_Input: {self.I_extern_Input}')
-        print(f'sub_idx: {self.sub_idx}')
-        print(f'C: {self.C}')
-        print(f'T_ref: {self.T_ref}')
-        print(f'g_Li: {self.g_Li}')
-        print(f'V_L: {self.V_L}')
-        print(f'V_th: {self.V_th}')
-        print(f'V_reset: {self.V_reset}')
-        print(f'g_ui: {self.g_ui}')
-        print(f'V_ui: {self.V_ui}')
-        print(f'tau_ui: {self.tau_ui}')
-
-        print(f't_ik_last: {self.t_ik_last}')
-        print(f'active: {self.active}')
-        print(f'V_i: {self.V_i}')
-        print(f'J_ui: {self.J_ui}')
-        print(f't: {self.t}')
+    def __repr__(self):
+        return '\n'.join(['block object'])
 
 
