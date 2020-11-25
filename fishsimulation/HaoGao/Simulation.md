@@ -1,6 +1,8 @@
 
 
-# Simulation-single neuron
+# Simulation
+
+By Hao Gao, 2020/11/25
 
 ## LIF model
 
