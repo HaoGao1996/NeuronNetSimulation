@@ -1,19 +1,36 @@
 import torch
 
+
 class block(object):
-    def __init__(self, node_property, delta_t=1):
+    def __init__(self, node_property, w_uij=None, delta_t=1):
         """
         A block is a set of spiking neurons with inner full connections, we consider 4 type connections:
         AMPA, NMDA, GABAa and GABAb
+
 
         :param node_property:
         :param delta_t:
         """
 
-        N = 1  # N: numbers of neural cells
-        K = 4  # K: connections kind, = 4 (AMPA, NMDA, GABAa and GABAb)
+        if w_uij is None:
+            N = 1  # N: numbers of neural cells
+            K = 4  # K: connections kind, = 4 (AMPA, NMDA, GABAa and GABAb)
+        else:
+            N = w_uij.shape[1]
+            K = w_uij.shape[0]
 
         self.delta_t = delta_t
+
+        self.update_property(node_property)
+
+        self.t_ik_last = torch.zeros((N, ))  # shape [N]
+        self.active = torch.tensor([False])  # bool
+        self.V_i = torch.ones((N, )) * (self.V_th + self.V_reset) / 2  # membrane potential, shape: [N]
+        self.J_ui = torch.zeros((K, N))  # shape [K, N]
+
+        self.t = torch.tensor([0.])  # scalar
+
+    def update_property(self, node_property):
 
         self.I_extern_Input = torch.tensor(node_property[:, 2])  # extern_input index , shape[K]
         self.sub_idx = torch.tensor(node_property[:, 3])  # shape [N]
@@ -28,22 +45,16 @@ class block(object):
             node_property[:, 14:18].reshape([4, 1]))  # AMPA, NMDA, GABAa and GABAb potential, shape [K, N]
         self.tau_ui = torch.tensor(node_property[:, 18:22].reshape([4, 1]))  # shape [K, N]
 
-        self.t_ik_last = torch.zeros(N)  # shape [N]
-        self.active = torch.tensor([False])  # bool
-        self.V_i = torch.ones(N) * (self.V_th + self.V_reset) / 2  # membrane potential, shape: [N]
-        self.J_ui = torch.zeros((K, N))  # shape [K, N]
-        self.t = torch.tensor([0.])  # scalar
+    def update(self, poisson):
+        """
 
-    def update1(self):
+        :param poisson: input
+        :return:
+        """
         self.t += self.delta_t
-        self.t_ik_last = torch.where(self.active, self.t, self.t_ik_last)
 
-        J_ui_activate_part = torch.ones(4, 1) * u
         self.J_ui = self.J_ui * torch.exp(-self.delta_t / self.tau_ui)
-        self.J_ui += J_ui_activate_part
-
-
-
+        self.J_ui += poisson
 
         I_ui = self.g_ui * (self.V_ui - self.V_i) * self.J_ui
         I_syn = I_ui.sum(dim=0)
@@ -57,6 +68,8 @@ class block(object):
         self.V_i = torch.where(is_not_saturated, Vi_normal, self.V_reset)
         self.active = self.V_i >= self.V_th
         self.V_i = torch.min(self.V_i, self.V_th)
+
+        self.t_ik_last = torch.where(self.active, self.t, self.t_ik_last)
 
     def __repr__(self):
         return '\n'.join(['block object'])

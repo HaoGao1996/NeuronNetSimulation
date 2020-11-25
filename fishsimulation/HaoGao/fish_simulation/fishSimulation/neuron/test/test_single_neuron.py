@@ -1,20 +1,20 @@
-from fishSimulation.utils.generator import gen_property
+from fishSimulation.utils.generator import gen_property, gen_spikes
 from fishSimulation.neuron.block import block
 import torch
 import matplotlib.pyplot as plt
 
-t = 100 #ms
-sp = torch.poisson(torch.ones(t)*1)
+t = 1000 #ms
+sp = gen_spikes(20)
 pro = gen_property()
-b = block(pro, delta_t=10)
+b = block(pro, delta_t=1)
 
 x_out = []
 y_out = []
 for i in range(t):
-    x, y = b.update(sp[i])
-    x_out.append(x)
-    y_out.append(y)
+    b.update(sp[i])
+    x_out.append(b.t[0].tolist())
+    y_out.append(b.V_i[0].tolist())
 
 plt.subplots()
-plt.plot(x_out,y_out)  #画图
-plt.show()#loss函数图
+plt.plot(x_out, y_out)  #画图
+plt.show()

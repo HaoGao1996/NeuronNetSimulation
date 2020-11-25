@@ -1,3 +1,6 @@
+import torch
+
+
 def gen_property():
     """
     E/I: 1, bool
@@ -37,7 +40,17 @@ def gen_property():
 
     return property
 
-# def gen_possion():
-#
-#
-# def gen_chalcium():
+
+def gen_spikes(f):
+    """
+
+    :param f: firing rate
+    :return:
+    """
+
+    s = torch.ones((10, 10000)).bernoulli_(f / 1000)
+    w = torch.rand((4, 10))
+    w[:2, 8:] = 0
+    w[2:, :8] = 0
+
+    return (w @ s).T.unsqueeze(dim=2)
