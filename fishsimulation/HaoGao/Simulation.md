@@ -186,4 +186,5 @@ P_{k|k}&=cov(x_k-\hat{x}_{k|k})\\
 \end{align} \tag{6-7}
 $$
 
+## Try1: Assuming observed data is only affected by single neuron
 

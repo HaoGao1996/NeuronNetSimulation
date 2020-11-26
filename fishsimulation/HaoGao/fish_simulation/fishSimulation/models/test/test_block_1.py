@@ -1,12 +1,12 @@
-from fishSimulation.utils.generator import gen_property, gen_spikes
-from fishSimulation.neuron.block import block
+from fishSimulation.utils.generator import gen_property, rand_chemical
+from fishSimulation.models.block import Block
 import torch
 import matplotlib.pyplot as plt
 
 t = 1000 #ms
-sp = gen_spikes(20)
+sp = rand_chemical(f=10, size=(10, t), E_ratio=0.8)
 pro = gen_property()
-b = block(pro, delta_t=1)
+b = Block(pro, delta_t=1)
 
 x_out = []
 y_out = []

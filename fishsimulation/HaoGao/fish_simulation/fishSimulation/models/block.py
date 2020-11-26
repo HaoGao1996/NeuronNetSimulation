@@ -1,7 +1,7 @@
 import torch
 
 
-class block(object):
+class Block(object):
     def __init__(self, node_property, w_uij=None, delta_t=1):
         """
         A block is a set of spiking neurons with inner full connections, we consider 4 type connections:
@@ -29,6 +29,8 @@ class block(object):
         self.J_ui = torch.zeros((K, N))  # shape [K, N]
 
         self.t = torch.tensor([0.])  # scalar
+
+
 
     def update_property(self, node_property):
 
@@ -71,7 +73,10 @@ class block(object):
 
         self.t_ik_last = torch.where(self.active, self.t, self.t_ik_last)
 
+        return self.active
+
     def __repr__(self):
         return '\n'.join(['block object'])
+
 
 

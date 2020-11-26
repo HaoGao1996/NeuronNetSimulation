@@ -1,6 +1,3 @@
-import torch
-
-
 def gen_property():
     """
     E/I: 1, bool
@@ -41,16 +38,99 @@ def gen_property():
     return property
 
 
-def gen_spikes(f):
+def get_calcium(sp, a=10, lam=(1.1, -0.15), b=1, delta_t=1):
     """
+    Generate calcium signal according to given spike seriers with a give std noise
 
-    :param f: firing rate
+    :param sp: torch.tensor
+        spike series
+    :param a:
+        amplitude
+    :param lam:
+        coefficient
+    :param b:
+        baseline
+    :param delta_t:
+
     :return:
+        calcium dynamics
     """
+    import torch
+    from fishSimulation.models.calcium import CalciumAR
 
-    s = torch.ones((10, 10000)).bernoulli_(f / 1000)
-    w = torch.rand((4, 10))
-    w[:2, 8:] = 0
-    w[2:, :8] = 0
+    t = len(sp)
+    ca = CalciumAR(a=a, lam=lam, b=b, delta_t=delta_t, s=sp[0])
+
+    c1 = ca.y
+    c2t = torch.tensor([ca.update(sp[i])[0].tolist() for i in range(t-1)])
+
+    return torch.cat([c1, c2t], dim=0)
+
+
+def rand_spikes(f, size):
+    """
+    generate random spikes
+
+    :param f: float
+        firing rate
+    :param size: tuple
+    :return:
+        random spikes
+    """
+    return torch.ones(size).bernoulli_(f / 1000)
+
+
+def rand_chemicals(f, size, ratio):
+    """
+    generate 4 chemicals concentration
+
+    :param f: float
+        firing rate
+    :param size: tuple
+        num * length
+    :param ratio: float
+        E/(I+E)
+
+    :return:
+
+    """
+    num, length = size
+
+    s = rand_spikes(f, size=size)
+    w = torch.rand((4, num))
+
+    split = int(ratio * num)
+    w[:2, split:] = 0
+    w[2:, :split] = 0
 
     return (w @ s).T.unsqueeze(dim=2)
+
+
+def rand_lif_spikes(size, ratio=0.8, f=10, delta_t=1):
+
+    from fishSimulation.models.block import Block
+
+    num, t = size
+    sp = rand_chemicals(f=f, size=size, ratio=ratio)
+    pro = gen_property()
+    b = Block(pro, delta_t=delta_t)
+
+    return torch.tensor([b.update(sp[i])[0].tolist() for i in range(t)], dtype=torch.int)
+
+
+
+
+
+def rand_lif_calcium(size, ratio=0.8, f=10, a=10, lam=(1.1, -0.15), b=1, delta_t=1, std=2):
+    """
+    Generate calcium signal based on lif model which was stimulated by a random input
+
+    :return:
+        calcium dynamics
+    """
+    sp = rand_lif_spikes(size=size, ratio=ratio, f=f, delta_t=delta_t)
+
+    return gen_calcium(sp=sp, a=a, lam=lam, b=b, delta_t=delta_t)
+
+
+
