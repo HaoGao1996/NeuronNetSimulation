@@ -30,10 +30,7 @@ class Block(object):
 
         self.t = torch.tensor([0.])  # scalar
 
-
-
     def update_property(self, node_property):
-
         self.I_extern_Input = torch.tensor(node_property[:, 2])  # extern_input index , shape[K]
         self.sub_idx = torch.tensor(node_property[:, 3])  # shape [N]
         self.C = torch.tensor(node_property[:, 4])  # shape [N]
