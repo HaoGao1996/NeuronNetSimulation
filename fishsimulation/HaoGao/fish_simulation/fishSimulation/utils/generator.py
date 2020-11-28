@@ -38,19 +38,21 @@ def gen_property():
     return property
 
 
-def get_calcium(sp, a=10, lam=(1.1, -0.15), b=1, delta_t=1, std=None):
+def get_calcium(sp, alpha=10, lam=(1.1, -0.15), bl=1, delta_t=1, std=None):
     """
-    Generate calcium signal according to given spike seriers with a give std noise
+    Generate calcium signal according to given spike series with a give std noise
 
     :param sp: torch.tensor
         spike series
-    :param a:
+    :param alpha: float
         amplitude
-    :param lam:
+    :param lam: tuple
         coefficient
-    :param b:
+    :param bl: float
         baseline
-    :param delta_t:
+    :param delta_t
+    :param std:
+        add white noise with std
 
     :return:
         calcium dynamics
@@ -59,7 +61,7 @@ def get_calcium(sp, a=10, lam=(1.1, -0.15), b=1, delta_t=1, std=None):
     from fishSimulation.models.calcium import CalciumAR
 
     t = len(sp)
-    ca = CalciumAR(a=a, lam=lam, b=b, delta_t=delta_t)
+    ca = CalciumAR(alpha=alpha, lam=lam, bl=bl, delta_t=delta_t)
     if std is None:
         return torch.tensor([ca.update(sp[i])[0].tolist() for i in range(t)])
     else:
@@ -81,51 +83,25 @@ def rand_spikes(f, size):
     return torch.ones(size).bernoulli_(f / 1000)
 
 
-def rand_lif_input_3D(f, size, num=10, ratio=(0.8, 0.5)):
+def rand_input_single(f, size, num=10, ratio=(0.8, 0.5)):
     """
-    generate input for all cells
-
-    :param f: float
-        firing rate
-    :param size: tuple
-        t * K * N
-    :param size:
-        num of input synaptics for each cell
-    :param ratio: float
-        E/(I+E), Ec/(Ic+Ec)
-
-    :return:
-
-    """
-    import torch
-
-    assert len(size) == 3
-
-    t, K, N = size
-
-    return torch.stack([rand_lif_input_2D(f, size=(t, K), num=num, ratio=ratio) for i in range(N)], dim=2)
-
-
-def rand_lif_input_2D(f, size, num=10, ratio=(0.8, 0.5)):
-    """
-    generate input for each cell
+    generate input for single cell with given connections
 
     :param f: float
         firing rate
     :param size: tuple
         t * K
-    :param size:
-        num of input synaptics for each cell
+    :param num: int
+        number of connections
     :param ratio: float
         E/(I+E), Ec/(Ic+Ec)
 
     :return:
-        2D tensor
+        3D tensor
     """
     import torch
 
     assert len(size) == 2
-
     t, K = size
 
     s = rand_spikes(f, size=(t, num))
@@ -136,45 +112,104 @@ def rand_lif_input_2D(f, size, num=10, ratio=(0.8, 0.5)):
     w[split1:, :split2] = 0
     w[:split1, split2:] = 0
 
-    return torch.matmul(s, w)
+    result = torch.matmul(s, w)
+
+    return result.unsqueeze(dim=2)
+
+# def rand_lif_input_3D(f, size, num=10, ratio=(0.8, 0.5)):
+#     """
+#     generate input for all cells
+#
+#     :param f: float
+#         firing rate
+#     :param size: tuple
+#         t * K * N
+#     :param A: int
+#         number of connections
+#     :param ratio: float
+#         E/(I+E), Ec/(Ic+Ec)
+#
+#     :return:
+#         3D tensor
+#     """
+#     import torch
+#
+#     assert len(size) == 3
+#
+#     t, K, N = size
+#
+#     return torch.stack([rand_lif_input_2D(f, size=(t, K), num=num, ratio=ratio) for i in range(N)], dim=2)
+#
+#
+# def rand_lif_input_2D(f, size, num=10, ratio=(0.8, 0.5)):
+#     """
+#     generate input for each cell
+#
+#     :param f: float
+#         firing rate
+#     :param size: tuple
+#         t * K * N
+#     :param num: int
+#         number of connections
+#     :param ratio: float
+#         E/(I+E), Ec/(Ic+Ec)
+#
+#     :return:
+#         2D tensor
+#     """
+#     import torch
+#
+#     assert len(size) == 2
+#
+#     t, K = size
+#
+#     s = rand_spikes(f, size=(t, num))
+#     w = torch.rand((num, K))
+#
+#     split1 = int(ratio[0] * num)
+#     split2 = int(ratio[1] * K)
+#     w[split1:, :split2] = 0
+#     w[:split1, split2:] = 0
+#
+#     return torch.matmul(s, w)
 
 
-def rand_lif_spikes(size, f=10, delta_t=1, num=10, ratio=(0.8, 0.5)):
-    import torch
-    from fishSimulation.models.block import Block
-
-    # t is the time
-    # K is the number of connections
-    # N is the number of cells
-    if len(size) == 1:
-        t = size
-        K = 1
-        N = 1
-    elif len(size) == 2:
-        t, K = size
-        N = 1
-    elif len(size) == 3:
-        t, K, N = size
-    else:
-        raise Exception("size dimension must be less than 3")
-
-    sp = rand_lif_input_3D(f=f, size=(t, K, N), num=num, ratio=ratio)
-    pro = gen_property()
-    b = Block(pro, delta_t=delta_t)
-
-    return torch.tensor([b.update(sp[i])[0].tolist() for i in range(t)], dtype=torch.int)
-
-
-def rand_lif_calcium(size, f=10, delta_t=1, num=10, ratio=(0.8, 0.5), a=10, lam=(1.1, -0.15), b=1, std=None):
-    """
-    Generate calcium signal based on lif model which was stimulated by a random input
-
-    :return:
-        calcium dynamics
-    """
-    sp = rand_lif_spikes(size=size, f=f, delta_t=delta_t, num=num, ratio=ratio)
-
-    return get_calcium(sp=sp, a=a, lam=lam, b=b, delta_t=delta_t, std=std)
+# def rand_lif_spikes(size, f=10, delta_t=1, num=10, ratio=(0.8, 0.5)):
+#     import torch
+#     from fishSimulation.models.block import Block
+#
+#     # t is the time
+#     # K is the number of connections
+#     # N is the number of cells
+#     if len(size) == 1:
+#         t = size
+#         K = 1
+#         N = 1
+#     elif len(size) == 2:
+#         t, K = size
+#         N = 1
+#     elif len(size) == 3:
+#         t, K, N = size
+#     else:
+#         raise Exception("size dimension must be less than 3")
+#
+#     sp = rand_lif_input_3D(f=f, size=(t, K, N), num=num, ratio=ratio)
+#     pro = gen_property()
+#     b = Block(pro, delta_t=delta_t)
+#
+#     return torch.tensor([b.update(sp[i])[0].tolist() for i in range(t)], dtype=torch.int)
+#
+#
+# def rand_lif_calcium(size, f=10, delta_t=1, num=10, ratio=(0.8, 0.5), a=10, lam=(1.1, -0.15), b=1, std=None):
+#     """
+#     Generate calcium signal based on lif model which was stimulated by a random input
+#
+#     :return:
+#         calcium dynamics
+#     """
+#     sp = rand_lif_spikes(size=size, f=f, delta_t=delta_t, num=num, ratio=ratio)
+#
+#     return get_calcium(sp=sp, a=a, lam=lam, b=b, delta_t=delta_t, std=std)
 
 
 
