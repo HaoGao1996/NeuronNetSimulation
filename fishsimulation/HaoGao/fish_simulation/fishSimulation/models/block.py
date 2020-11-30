@@ -28,6 +28,8 @@ class Block(object):
         self.V_i = torch.ones((N, )) * (self.V_th + self.V_reset) / 2  # membrane potential, shape: [N]
         self.J_ui = torch.zeros((K, N))  # shape [K, N]
 
+        self.counter = 0
+
     def update_property(self, node_property):
         self.I_extern_Input = torch.tensor(node_property[:, 2])  # extern_input index , shape[K]
         self.sub_idx = torch.tensor(node_property[:, 3])  # shape [N]
@@ -66,6 +68,8 @@ class Block(object):
         self.V_i = torch.where(is_not_saturated, Vi_normal, self.V_reset)
         active = self.V_i >= self.V_th
         self.V_i = torch.min(self.V_i, self.V_th)
+        if active is True:
+            self.counter += 1
 
         self.t_ik_last = torch.where(active, torch.tensor(self.t), self.t_ik_last)
 

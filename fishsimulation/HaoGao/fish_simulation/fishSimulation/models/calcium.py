@@ -12,7 +12,7 @@ class CalciumAR(object):
             coefficient
         :param bl: float
             baseline
-        :param delta_t: int (ms)
+        :param delta_tc: int (ms)
         """
         self.p = len(lam)
         self.cac = torch.zeros((self.p, ))          # calcium concentration

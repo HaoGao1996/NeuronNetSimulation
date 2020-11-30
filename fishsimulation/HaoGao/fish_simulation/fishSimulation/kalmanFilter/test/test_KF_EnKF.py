@@ -18,7 +18,7 @@ T = 100
 x = torch.tensor([5., 3.])
 P = torch.eye(2) * 100
 N = 100
-enkf = EnsembleKalmanFilter(x=x, P=P, dim_x=2, dim_z=1, hx=hx, fxu=fxu, N=N)
+enkf = EnsembleKalmanFilter(x=x, P=P, dim_x=2, z=torch.zeros([0]), dim_z=1, hx=hx, fxu=fxu, N=N)
 std_noise = 10
 enkf.R *= std_noise**2
 enkf.Q *= 0.002

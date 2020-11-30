@@ -7,24 +7,29 @@ class EnsembleKalmanFilter(object):
     x_k = f(x_k-1, u_k) + w_k
     z_k = h(x_k) + v_k
     """
-    def __init__(self, dim_x, dim_z, x, P, fxu, hx, z=None, dim_u=0, Q=None, B=None, u=None, R=None, N=100):
+    def __init__(self, dim_x, dim_z, x, P, fxu, hx, z, Q=None, R=None, N=100):
 
         self.dim_x = dim_x  # length of state vector
         self.dim_z = dim_z  # length of measurement vector
-        self.dim_u = dim_u  # length of input vector
 
-        self.x = torch.zeros(dim_x)                              # state vector
+        self.x = x
         self.fxu = fxu                                              # definition of state transition function f(x)
-        self.Q = torch.eye(dim_x)                                   # process uncertainty
+        if Q is None:
+            self.Q = torch.eye(dim_x)                                   # process uncertainty
+        else:
+            self.Q = Q
 
         self.z = torch.zeros(dim_z)                              # measurement vector
         self.hx = hx                                                # definition of observation model h(x)
-        self.R = torch.eye(self.dim_z)                              # measurement uncertainty
+        if R is None:
+            self.R = torch.eye(self.dim_z)                              # measurement uncertainty
+        else:
+            self.R = R
 
         self.P = P                                                  # error covariance matrix
-        self.N = N                                                  # number of sampling
-        self.sigmas = MultivariateNormal(torch.squeeze(x),          # as 1D tensor
-                                         P).sample((N, ))           # samples
+        self.N = N                                                 # number of sampling
+
+        self.sigmas = MultivariateNormal(loc=x, covariance_matrix=P).sample((N, ))           # samples
 
         self.K = torch.zeros((dim_x, dim_z))                        # kalman gain
         self.S = torch.zeros((dim_z, dim_z))                        # system uncertainty
