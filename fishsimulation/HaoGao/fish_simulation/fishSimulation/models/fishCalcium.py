@@ -114,7 +114,8 @@ class FishCalcium(object):
         """
         from torch.distributions.multivariate_normal import MultivariateNormal
 
-        x_ = MultivariateNormal(loc=self.V_i, covariance_matrix=self.Q).rsample()
+        # x_ = MultivariateNormal(loc=self.V_i, covariance_matrix=self.Q).rsample()
+        x_ = x
 
         return x_
 

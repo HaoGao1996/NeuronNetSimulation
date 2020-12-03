@@ -31,8 +31,8 @@ ca_output = torch.load(join(dir, '20201130_calcium_output_single_10ms.pkl'))
 
 pro = gen.gen_property()
 fc = FishCalcium(node_property=pro, w_uij=torch.ones(4, 1), delta_tb=1,
-                 alpha=10, lam=(1.1, -0.15), bl=0, delta_tc=10,
-                 sp_input=sp_input, Q=None)
+                 alpha=10, lam=(1.1, -0.15), bl=0, delta_tc=20,
+                 sp_input=sp_input)
 
 enkf = EnsembleKalmanFilter(dim_x=1, dim_z=1, x=fc.V_i, P=torch.eye(1)*0.01,
                             fxu=fc.enkf_predict_vi, hx=fc.enkf_update_vi,
