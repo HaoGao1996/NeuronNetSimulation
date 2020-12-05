@@ -2,7 +2,7 @@ import torch
 
 
 class Block(object):
-    def __init__(self, node_property, w_uij, delta_tb=1):
+    def __init__(self, node_property, w_uij, delta_t=1):
         """
         A block is a set of spiking neurons with inner full connections, we consider 4 type connections:
         AMPA, NMDA, GABAa and GABAb
@@ -19,16 +19,14 @@ class Block(object):
         self.N = N
         self.w_uij = w_uij   # shape: [K, N]
 
-        self.delta_tb = delta_tb  # scalar int
+        self.delta_t = delta_t  # scalar int
         self.t = 0  # scalar int
 
         self.update_property(node_property)
 
-        self.t_ik_last = torch.zeros((N, ), dtype=int)  # shape [N]
+        self.t_ik_last = torch.zeros((N, ), dtype=torch.int64)  # shape [N]
         self.V_i = torch.ones((N, )) * (self.V_th + self.V_reset) / 2  # membrane potential, shape: [N]
         self.J_ui = torch.zeros((K, N))  # shape [K, N]
-
-        self.counter = 0
 
     def update_property(self, node_property):
         self.I_extern_Input = torch.tensor(node_property[:, 2])  # extern_input index , shape[K]
@@ -51,16 +49,16 @@ class Block(object):
         :return:
             active, shape [N, 1]
         """
-        self.t += self.delta_tb
+        self.t += self.delta_t
 
-        self.J_ui = self.J_ui * torch.exp(-self.delta_tb / self.tau_ui)
+        self.J_ui = self.J_ui * torch.exp(-self.delta_t / self.tau_ui)
         self.J_ui += self.w_uij * d
 
         I_ui = self.g_ui * (self.V_ui - self.V_i) * self.J_ui
         I_syn = I_ui.sum(dim=0)
 
         delta_Vi = -self.g_Li * (self.V_i - self.V_L) + I_syn + self.I_extern_Input
-        delta_Vi *= self.delta_tb / self.C
+        delta_Vi *= self.delta_t / self.C
 
         Vi_normal = self.V_i + delta_Vi
 
@@ -68,8 +66,6 @@ class Block(object):
         self.V_i = torch.where(is_not_saturated, Vi_normal, self.V_reset)
         active = self.V_i >= self.V_th
         self.V_i = torch.min(self.V_i, self.V_th)
-        if active is True:
-            self.counter += 1
 
         self.t_ik_last = torch.where(active, torch.tensor(self.t), self.t_ik_last)
 
@@ -77,6 +73,3 @@ class Block(object):
 
     def __repr__(self):
         return '\n'.join(['Block object'])
-
-
-

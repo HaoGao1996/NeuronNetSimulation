@@ -7,7 +7,7 @@ class EnsembleKalmanFilter(object):
     x_k = f(x_k-1, u_k) + w_k
     z_k = h(x_k) + v_k
     """
-    def __init__(self, dim_x, dim_z, x, P, fxu, hx, z, Q=None, R=None, N=100):
+    def __init__(self, dim_x, dim_z, x, z, fxu, hx, P=None, Q=None, R=None, N=100):
 
         self.dim_x = dim_x  # length of state vector
         self.dim_z = dim_z  # length of measurement vector
@@ -26,7 +26,11 @@ class EnsembleKalmanFilter(object):
         else:
             self.R = R
 
-        self.P = P                                                  # error covariance matrix
+        if P is None:
+            self.P = torch.eye(self.dim_x)
+        else:
+            self.P = P  # error covariance matrix
+
         self.N = N                                                 # number of sampling
 
         self.sigmas = MultivariateNormal(loc=x, covariance_matrix=P).sample((N, ))           # samples
@@ -47,8 +51,9 @@ class EnsembleKalmanFilter(object):
         self.__meanz = torch.zeros(dim_z)                           # as 1D tensor for sampling
 
     def predict(self):
-        for i, s in enumerate(self.sigmas):
-            self.sigmas[i] = self.fxu(s)
+        # for i, s in enumerate(self.sigmas):
+        #     self.sigmas[i] = self.fxu(s)
+        self.sigmas = self.fxu(self.sigmas)
 
         # error for Pk|k=E(xk|k-xk|k-1)
         mn = MultivariateNormal(loc=self.__mean, covariance_matrix=self.Q)
@@ -71,8 +76,9 @@ class EnsembleKalmanFilter(object):
 
         # calculate system uncertainty
         sigmas_h = torch.zeros((self.N, self.dim_z))
-        for i, s in enumerate(self.sigmas):
-            sigmas_h[i] = self.hx(s)
+        # for i, s in enumerate(self.sigmas):
+        #     sigmas_h[i] = self.hx(s)
+        sigmas_h = self.hx(sigmas_h)
 
         z_mean = torch.mean(sigmas_h, dim=0)
 

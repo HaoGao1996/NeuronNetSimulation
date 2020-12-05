@@ -140,7 +140,7 @@ def rand_lif_spikes_single(size, f=10, delta_tb=1, num=10, ratio=(0.8, 0.5)):
 
     sp = rand_input_single(f=f, size=(t, K), num=num, ratio=ratio)
     pro = gen_property()
-    b = Block(pro, w_uij=torch.ones((K,1)), delta_tb=delta_tb)
+    b = Block(pro, w_uij=torch.ones((K,1)), delta_t=delta_tb)
 
     return torch.tensor([b.update(sp[i])[0].tolist() for i in range(t)], dtype=torch.int), sp
 
