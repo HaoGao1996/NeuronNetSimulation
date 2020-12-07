@@ -55,11 +55,6 @@ class FishCalciumEnKF(object):
 
         self.N = N
 
-        if P is None:
-            self.P = torch.eye(self.dim_x)                             # error covariance matrix
-        else:
-            self.P = P
-
         if Q is None:
             self.Q = torch.eye(self.dim_x)                               # process uncertainty
         else:
@@ -81,7 +76,7 @@ class FishCalciumEnKF(object):
 
     def init_sampling(self):
 
-        self.x_samples = MultivariateNormal(loc=self.x, covariance_matrix=self.P).sample((self.N,))
+        self.x_samples = MultivariateNormal(loc=self.x, covariance_matrix=self.Q).sample((self.N,))
         # initialize N block objects
         self.fc_list = [self.update_vars(copy.deepcopy(self.fc), self.x_samples[i]) for i in range(self.N)]
 
@@ -91,14 +86,21 @@ class FishCalciumEnKF(object):
 
     def obtain_vars(self, fc):
         x = torch.cat((fc.block.g_ui[0], fc.block.g_ui[2]), dim=0)
+
         return x
 
     def update_vars(self, fc, x):
         fc.block.g_ui[0], fc.block.g_ui[2] = x
+
         return fc
 
-    def cal_x_mean(self):
+    def get_x_all(self):
         x_all = torch.stack([self.obtain_vars(self.fc_list[i]) for i in range(self.N)], dim=0)
+
+        return x_all
+
+    def cal_x_mean(self):
+        x_all = self.get_x_all()
         x_mean = x_all.mean(0)
 
         return x_mean
@@ -116,8 +118,6 @@ class FishCalciumEnKF(object):
                 self.fc_list[i].update()
         self.x_samples = torch.stack([self.obtain_vars(self.fc_list[i]) for i in range(self.N)], dim=0)
 
-        P = cal_cov(self.x_samples) + self.Q
-
         x_samples_ca = torch.stack([self.fc_list[i].calciumAR.flu for i in range(self.N)], dim=0)
         self.S = cal_cov(x_samples_ca) + self.R
         self.SI = torch.inverse(self.S)
@@ -131,11 +131,8 @@ class FishCalciumEnKF(object):
         # sampling measurement value and update sigmas
         e = MultivariateNormal(self.__meanz, self.R).sample((self.N, ))
         for i in range(self.N):
-            self.sigmas[i] += self.K @ (z + e[i] - sigmas_h[i])
-
-        # update posterior estimation
-        self.x = torch.mean(self.sigmas, dim=0)
-        self.P = self.P - self.K @ self.S @ self.K.T
+            self.x_samples[i] += self.K @ (z + e[i] - x_samples_ca[i])
+            self.update_vars(self.fc_list[i], self.x_samples[i])
 
     def __repr__(self):
         return '/n'.join(['FishCalciumEnKF object'])
