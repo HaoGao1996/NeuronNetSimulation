@@ -26,7 +26,7 @@ fc_enkf.R *= 0.5
 fc_enkf.init_sampling()
 
 results = []
-<<<<<<< HEAD
+
 T = 1000
 for i in range(T):
     print(i)
@@ -44,7 +44,7 @@ axes[0].scatter(t, results[:, :, 0].mean(1))
 axes[0].plot([0, T], [10 / 500, 10 / 500], 'r', linewidth=2)
 axes[1].scatter(t, results[:, :, 1].mean(1))
 axes[1].plot([0, T], [1.5 / 60, 1.5 / 60], 'r', linewidth=2)
-=======
+
 for i in range(100):
     # print(i)
     fc_enkf.run_enkf(ca_output[i])
@@ -59,5 +59,5 @@ t = torch.arange(100)
 fig, axes = plt.subplots(2, 1)
 axes[0].scatter(t, results[:, :, 0].mean(1))
 axes[1].scatter(t, results[:, :, 1].mean(1))
->>>>>>> f8b86a3250fbea8c6da88a56e1eb29d41b66e324
+
 plt.show()
