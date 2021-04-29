@@ -1,5 +1,5 @@
-# ZebrafishSimulation
-Zebrafish Simulation Project
+# Simulation
+Simulation Project
 
 [ Kalman-and-Bayesian-Filters-in-Python](https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python)
 
